@@ -4,68 +4,51 @@ import pandas as pd
 import io
 
 # Set up the page layout
-st.set_page_config(page_title="Ad Tag Text to Excel", page_icon="📊", layout="centered")
+st.set_page_config(page_title="Adform to DV360 Converter", page_icon="📊", layout="centered")
 
-def extract_info(input_text):
-    # Use regular expressions to extract relevant information
-    tag_pattern = r'Tag \d+\. "(.*?)" \(Line Item: (.*?), Size: (.*?)\)'
-    serving_method_pattern = r'Serving method: 3\'rd party standard javascript tag:\n(.*?)Banner preview:'
+def process_excel(uploaded_file):
+    # Read the Excel file, assuming row 8 contains headers (index 7 in pandas)
+    df_input = pd.read_excel(uploaded_file, header=7)
     
-    tag_matches = re.findall(tag_pattern, input_text, re.DOTALL)
-    serving_method_matches = re.findall(serving_method_pattern, input_text, re.DOTALL)
+    # Check if required columns exist to avoid cryptic KeyError
+    required_cols = ['Ad name', 'Dimensions', 'Script', 'Destination URL']
+    missing_cols = [col for col in required_cols if col not in df_input.columns]
+    if missing_cols:
+        raise ValueError(f"Missing expected columns in row 8: {', '.join(missing_cols)}. Please check the Adform export format.")
 
-    # Adding a quick safety check in case the regex parsing mismatches
-    min_len = min(len(tag_matches), len(serving_method_matches))
-    if len(tag_matches) != len(serving_method_matches):
-        st.warning(f"⚠️ Warning: Found {len(tag_matches)} tags but {len(serving_method_matches)} serving methods. Check your text file for formatting irregularities.")
+    # Map Adform columns to DV360 Bulk Import structure
+    df_output = pd.DataFrame({
+        "Creative name": df_input['Ad name'],
+        "Dimensions (width x height)": df_input['Dimensions'],
+        "Third-party tag": df_input['Script'],
+        "Landing page URL": df_input['Destination URL'],
+        "Expanding direction": "",
+        "Expands on hover": "",
+        "Requires HTML5": "",
+        "Requires MRAID": "",
+        "Requires ping for attribution": "",
+        "Integration code (Optional)": "",
+        "Notes (Optional)": ""
+    })
 
-    # Create a list of dictionaries containing extracted information
-    result = []
-    for i in range(min_len):
-        creative_name = tag_matches[i][0]  # Extract the creative name
-        size = tag_matches[i][2].split(', Type:')[0]  # Extract the size without the type
-        script = serving_method_matches[i].strip()  # Extract the script and clean up whitespace
-        
-        # Create a dictionary with the extracted information
-        tag_info = {
-            "Creative name": creative_name,
-            "Dimensions (width x height)": size,
-            "Third-party tag": script,
-            "Landing page URL": "",
-            "Expanding direction": "",
-            "Expands on hover": "",
-            "Requires HTML5": "",
-            "Requires MRAID": "",
-            "Requires ping for attribution": "",
-            "Integration code (Optional)": "",
-            "Notes (Optional)": "",
-        }
-        result.append(tag_info)
+    # Drop any empty rows (where Creative name is missing)
+    df_output = df_output.dropna(subset=['Creative name'])
     
-    return result
+    return df_output
 
 def main():
-    st.title("📊 Ad Tag Text to Excel Converter")
-    st.write("Upload a `.txt` file containing your ad tags to extract them into a formatted Excel sheet.")
+    st.title("📊 Adform to DV360 Bulk Converter")
+    st.write("Upload your Adform export `.xlsx` file to convert it into a DV360 bulk import format.")
 
-    uploaded_file = st.file_uploader("Upload Input File (.txt)", type=["txt"])
+    # Change file uploader to accept Excel files
+    uploaded_file = st.file_uploader("Upload Adform Excel File (.xlsx)", type=["xlsx", "xls"])
 
     if uploaded_file is not None:
         if st.button("Process File", type="primary"):
-            with st.spinner("Extracting tags and generating Excel file..."):
+            with st.spinner("Reading Adform export and generating DV360 file..."):
                 try:
-                    # Read the uploaded file
-                    input_text = uploaded_file.read().decode("utf-8")
-                    
-                    # Extract the information
-                    extracted_info = extract_info(input_text)
-                    
-                    if not extracted_info:
-                        st.error("No valid tags found. Please ensure the text matches the expected format.")
-                        return
-
-                    # Create a Pandas DataFrame
-                    df = pd.DataFrame(extracted_info)
+                    # Process the Excel file
+                    df = process_excel(uploaded_file)
                     
                     # Show a quick preview in the browser (first 5 rows)
                     st.subheader("Data Preview")
@@ -76,13 +59,13 @@ def main():
                     df.to_excel(excel_buffer, index=False)
                     excel_buffer.seek(0)
 
-                    st.success(f"Data successfully extracted! ({len(extracted_info)} tags processed)")
+                    st.success(f"Data successfully converted! ({len(df)} tags processed)")
                     
                     # Provide the download button
                     st.download_button(
-                        label="📥 Download Excel File",
+                        label="📥 Download DV360 Bulk File",
                         data=excel_buffer.getvalue(),
-                        file_name="processed_ad_tags.xlsx",
+                        file_name="dv360_bulk_import.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
 
