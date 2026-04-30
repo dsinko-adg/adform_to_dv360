@@ -10,6 +10,9 @@ def process_excel(uploaded_file):
     # Read the Excel file, assuming row 8 contains headers (index 7 in pandas)
     df_input = pd.read_excel(uploaded_file, header=7)
     
+    # Drop the first row of data (row 9 in the original Excel file) which contains dummy data
+    df_input = df_input.iloc[1:].reset_index(drop=True)
+    
     # Check if required columns exist to avoid cryptic KeyError
     required_cols = ['Ad name', 'Dimensions', 'Script', 'Destination URL']
     missing_cols = [col for col in required_cols if col not in df_input.columns]
@@ -45,7 +48,7 @@ def main():
 
     if uploaded_file is not None:
         if st.button("Process File", type="primary"):
-            with st.spinner("Reading Adform export and generating DV360 file..."):
+            with st.spinner("Reading Adform export and generating DV360 files..."):
                 try:
                     # Process the Excel file
                     df = process_excel(uploaded_file)
@@ -58,16 +61,30 @@ def main():
                     excel_buffer = io.BytesIO()
                     df.to_excel(excel_buffer, index=False)
                     excel_buffer.seek(0)
+                    
+                    # Save the DataFrame to a CSV string in memory
+                    csv_data = df.to_csv(index=False).encode('utf-8')
 
                     st.success(f"Data successfully converted! ({len(df)} tags processed)")
                     
-                    # Provide the download button
-                    st.download_button(
-                        label="📥 Download DV360 Bulk File",
-                        data=excel_buffer.getvalue(),
-                        file_name="dv360_bulk_import.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
+                    # Provide the download buttons side-by-side
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.download_button(
+                            label="📥 Download DV360 Bulk File (.xlsx)",
+                            data=excel_buffer.getvalue(),
+                            file_name="dv360_bulk_import.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        )
+                        
+                    with col2:
+                        st.download_button(
+                            label="📄 Download DV360 Bulk File (.csv)",
+                            data=csv_data,
+                            file_name="dv360_bulk_import.csv",
+                            mime="text/csv"
+                        )
 
                 except Exception as e:
                     st.error(f"An error occurred while processing the file: {e}")
