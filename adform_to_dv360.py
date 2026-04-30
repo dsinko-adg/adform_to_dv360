@@ -24,7 +24,7 @@ def process_excel(uploaded_file):
         "Landing page URL": df_input['Destination URL'],
         "Expanding direction": "",
         "Expands on hover": "",
-        "Requires HTML5": "",
+        "Requires HTML5": "Yes",
         "Requires MRAID": "",
         "Requires ping for attribution": "",
         "Integration code (Optional)": "",
