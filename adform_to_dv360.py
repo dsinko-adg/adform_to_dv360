@@ -63,7 +63,7 @@ def main():
     # Add option to select CM360 linked status
     is_cm_linked_selection = st.radio(
         "Is the DV360 advertiser linked to Campaign Manager 360 (CM360)?",
-        options=["No (Not CM360 Linked)", "Yes (CM360 Linked)"],
+        options=["No (Not CM360 Linked - pl. Fórum Hungary)", "Yes (CM360 Linked)"],
         index=0
     )
     is_cm_linked = is_cm_linked_selection == "Yes (CM360 Linked)"
