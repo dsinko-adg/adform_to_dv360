@@ -6,7 +6,7 @@ import io
 # Set up the page layout
 st.set_page_config(page_title="Adform to DV360 Converter", page_icon="📊", layout="centered")
 
-def process_excel(uploaded_file):
+def process_excel(uploaded_file, is_cm_linked):
     # Read the Excel file, assuming row 8 contains headers (index 7 in pandas)
     df_input = pd.read_excel(uploaded_file, header=7)
     
@@ -19,20 +19,37 @@ def process_excel(uploaded_file):
     if missing_cols:
         raise ValueError(f"Missing expected columns in row 8: {', '.join(missing_cols)}. Please check the Adform export format.")
 
-    # Map Adform columns to DV360 Bulk Import structure
-    df_output = pd.DataFrame({
-        "Creative name": df_input['Ad name'],
-        "Dimensions (width x height)": df_input['Dimensions'],
-        "Third-party tag": df_input['Script'],
-        "Landing page URL": df_input['Destination URL'],
-        "Expanding direction": "",
-        "Expands on hover": "",
-        "Requires HTML5": "Yes",
-        "Requires MRAID": "",
-        "Requires ping for attribution": "",
-        "Integration code (Optional)": "",
-        "Notes (Optional)": ""
-    })
+    if is_cm_linked:
+        # Map Adform columns to DV360 Bulk Import structure (CM Linked)
+        df_output = pd.DataFrame({
+            "Creative name": df_input['Ad name'],
+            "Dimensions (width x height)": df_input['Dimensions'],
+            "Third-party tag": df_input['Script'],
+            "Landing page URL (Optional)": df_input['Destination URL'],
+            "Expanding direction": "",
+            "Expands on hover": "",
+            "Requires HTML5": "Yes",
+            "Requires MRAID": "",
+            "Campaign Manager 360 Tracking Placement ID": "",
+            "Requires ping for attribution": "",
+            "Integration code (Optional)": "",
+            "Notes (Optional)": ""
+        })
+    else:
+        # Map Adform columns to DV360 Bulk Import structure (Not CM Linked)
+        df_output = pd.DataFrame({
+            "Creative name": df_input['Ad name'],
+            "Dimensions (width x height)": df_input['Dimensions'],
+            "Third-party tag": df_input['Script'],
+            "Landing page URL": df_input['Destination URL'],
+            "Expanding direction": "",
+            "Expands on hover": "",
+            "Requires HTML5": "Yes",
+            "Requires MRAID": "",
+            "Requires ping for attribution": "",
+            "Integration code (Optional)": "",
+            "Notes (Optional)": ""
+        })
 
     # Drop any empty rows (where Creative name is missing)
     df_output = df_output.dropna(subset=['Creative name'])
@@ -43,6 +60,14 @@ def main():
     st.title("📊 Adform to DV360 Bulk Converter")
     st.write("Upload your Adform export `.xlsx` file to convert it into a DV360 bulk import format.")
 
+    # Add option to select CM360 linked status
+    is_cm_linked_selection = st.radio(
+        "Is the DV360 advertiser linked to Campaign Manager 360 (CM360)?",
+        options=["No (Not CM360 Linked)", "Yes (CM360 Linked)"],
+        index=0
+    )
+    is_cm_linked = is_cm_linked_selection == "Yes (CM360 Linked)"
+
     # Change file uploader to accept Excel files
     uploaded_file = st.file_uploader("Upload Adform Excel File (.xlsx)", type=["xlsx", "xls"])
 
@@ -51,7 +76,7 @@ def main():
             with st.spinner("Reading Adform export and generating DV360 files..."):
                 try:
                     # Process the Excel file
-                    df = process_excel(uploaded_file)
+                    df = process_excel(uploaded_file, is_cm_linked)
                     
                     # Show a quick preview in the browser (first 5 rows)
                     st.subheader("Data Preview")
